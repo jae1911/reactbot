@@ -73,12 +73,15 @@ class ReactBot(Plugin):
             fi.max = self.config["antispam.room.max"]
             fi.delay = self.config["antispam.room.delay"]
 
-    def _make_flood_info(self, for_type: str) -> 'FloodInfo':
-        return FloodInfo(max=self.config[f"antispam.{for_type}.max"],
-                         delay=self.config[f"antispam.{for_type}.delay"],
-                         count=0, last_message=0)
+    def _make_flood_info(self, for_type: str) -> "FloodInfo":
+        return FloodInfo(
+            max=self.config[f"antispam.{for_type}.max"],
+            delay=self.config[f"antispam.{for_type}.delay"],
+            count=0,
+            last_message=0,
+        )
 
-    def _get_flood_info(self, flood_map: dict, key: str, for_type: str) -> 'FloodInfo':
+    def _get_flood_info(self, flood_map: dict, key: str, for_type: str) -> "FloodInfo":
         try:
             return flood_map[key]
         except KeyError:
@@ -86,14 +89,27 @@ class ReactBot(Plugin):
             return fi
 
     def is_flood(self, evt: MessageEvent) -> bool:
-        return (self._get_flood_info(self.user_flood, evt.sender, "user").bump()
-                or self._get_flood_info(self.room_flood, evt.room_id, "room").bump())
+        return (
+            self._get_flood_info(self.user_flood, evt.sender, "user").bump()
+            or self._get_flood_info(self.room_flood, evt.room_id, "room").bump()
+        )
 
     @event.on(EventType.ROOM_MESSAGE)
     async def event_handler(self, evt: MessageEvent) -> None:
         ignored_mxids = self.config["ignored_users"]
         ignored_mxids.append(self.client.mxid)
-        if evt.sender in ignored_mxids or evt.content.msgtype not in self.allowed_msgtypes:
+
+        is_spoiler = False
+
+        if evt.content.formatted_body:
+            if "data-mx-spoiler" in evt.content.formatted_body:
+                is_spoiler = True
+
+        if (
+            evt.sender in ignored_mxids
+            or evt.content.msgtype not in self.allowed_msgtypes
+            or is_spoiler
+        ):
             return
         for name, rule in self.config.rules.items():
             match = rule.match(evt)
