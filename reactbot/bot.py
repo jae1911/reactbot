@@ -91,6 +91,22 @@ class ReactBot(Plugin):
 
     @event.on(EventType.ROOM_MESSAGE)
     async def event_handler(self, evt: MessageEvent) -> None:
+        ignored_mxids = self.config["ignored_users"]
+        ignored_rooms = self.config["ignored_rooms"]
+
+        is_spoiler = False
+        if evt.content.formatted_body:
+            if "data-spoiler-mx" in evt.content.formatted_body:
+                is_spoiler = True
+
+        if (
+                is_spoiler
+                or evt.content.msgtype not in self.allowed_msgtypes
+                or evt.sender in ignored_mxids
+                or evt.room_id in ignored_rooms
+            ):
+            return
+
         if evt.sender == self.client.mxid or evt.content.msgtype not in self.allowed_msgtypes:
             return
         for name, rule in self.config.rules.items():
